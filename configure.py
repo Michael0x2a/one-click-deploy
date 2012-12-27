@@ -19,12 +19,12 @@ def get_config_values():
             if line == '':
                 continue
             if r'=' not in line:
-                raise InvalidConfigFile('"{0}" is invalid'.format(raw_line))
+                raise InvalidConfigFile('"{0}" is invalid'.format(line))
             key, value = line.split('=')
             key = key.strip()
             value = value.strip()
             if value in (r'?', ''):
-                raise InvalidConfigFile('"{0}" is invalid'.format(raw_line))
+                raise InvalidConfigFile('"{0}" is invalid'.format(line))
             op[key] = value
     return op
     
