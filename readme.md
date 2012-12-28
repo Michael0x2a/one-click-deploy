@@ -12,11 +12,10 @@ run the Python file as an administrator if you want it to be able to switch the 
 ## Misc
 
 Author: Michael Lee
-Version: December 26, 2012 (version 1)
+Version: December 28, 2012 (version 2)
 
 ## Todo
 
 *   Confirm code works
-*   Develop a gui
-*   Simplify configuration
+*   Fix makefile generation
 *   Generate executables

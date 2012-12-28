@@ -1,0 +1,15 @@
+team_number = 2976
+robot_network_name = 2976
+
+repo_target_url = http://skyline-robotics.googlecode.com/svn/trunk/2012_MainRobot
+repo_target_revision = LATEST
+repo_download_dir = source
+binary_name = SimpleTemplate
+
+build_target = PPC603gnu
+windriver_install_dir = C:\WindRiver
+wind_base = C:\WindRiver\vxworks-6.3
+working_dir = \.
+
+wireless_mac_address = C4:85:08:E0:E5:7F
+ethernet_mac_address = 50:B7:C3:77:1E:19

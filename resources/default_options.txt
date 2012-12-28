@@ -1,0 +1,26 @@
+# Configuration options for one-click-deploy
+# Any line starting with '#' is a comment.
+#
+# Usage:
+# 
+#     key = {value}
+#
+# Feel free to adjust values to your liking. If you mess
+# up the keys, and want a new "options.txt" file, just delete
+# this one, and a new (blank) one will be generated.
+
+team_number =
+robot_network_name =
+
+repo_target_url = 
+repo_target_revision = LATEST
+repo_download_dir = source
+binary_name = SimpleTemplate
+
+build_target = PPC603gnu
+windriver_install_dir = C:\WindRiver
+wind_base = C:\WindRiver\vxworks-6.3
+working_dir = \.
+
+wireless_mac_address =
+ethernet_mac_address =

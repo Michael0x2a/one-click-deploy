@@ -1,0 +1,9 @@
+{project_name}/$(MODE_DIR)/{project_name}.a : $(OBJECTS_{project_name}) \
+$(TRACE_FLAG)if [ ! -d "`dirname "$@"`" ]; then mkdir -p "`dirname "$@"`"; fi;echo "building $@"; $(TOOL_PATH)arppc crus "$@" $(OBJECTS_{project_name})
+
+{project_name}/$(MODE_DIR)/{project_name}_compile_file : $(FILE) ;
+
+_clean :: {project_name}/$(MODE_DIR)/{project_name}_clean
+
+{project_name}/$(MODE_DIR)/{project_name}_clean : \
+$(TRACE_FLAG)if [ -d "{project_name}" ]; then cd "{project_name}"; rm -rf $(MODE_DIR); fi

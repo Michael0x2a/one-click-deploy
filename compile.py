@@ -2,36 +2,44 @@
 
 import sys
 import os
+import os.path
 import subprocess
-    
-import utils
 
-def generate_compile_file(options):
-    utils.log('Generating temporary compilation file')
-    with open(utils.get(r'resources', r'template'), 'r') as f:
+import makefile
+
+def create_makefile(options):
+    m = makefile.generate_makefile(options)
+    build_dir = '{0}/{1}'.format(options.repo_download_dir, options.build_target)
+    path = build_dir + '/Makefile'
+    if not os.path.exists(build_dir):
+        os.makedirs(build_dir)
+    with open(path, 'w') as f:
+        f.write(m)
+    
+def create_compilation_file(options):
+    with open(r'resources/compile_bat.txt', 'r') as f:
         template = f.read()
     bat_file = template.format(
-        windriver=options.windriver_install_dir, 
-        wind_base=options.wind_base, 
-        working_dir=utils.get(options.download_target, options.build_target))
-    with open(r'compile.bat', 'w') as f:
+        windriver = options.windriver_install_dir,
+        wind_base = options.wind_base,
+        working_dir = '{0}/{1}'.format(options.repo_download_dir, options.build_target))
+    with open('compile.bat', 'w') as f:
         f.write(bat_file)
-        
-def run_compile_file():
-    utils.log('Starting compilation')
-    p = subprocess.Popen(
-        utils.get(r'compile.bat'), 
-        shell=True, 
-        stdout=sys.__stdout__, 
-        cwd=os.getcwd())
-        
-def remove_compile_file():
-    utils.log('Deleting temporary compilation file')
-    os.remove(utils.get(r'compile.bat'))
     
-def compile(options):
-    generate_compile_file(options)
-    run_compile_file()
-    remove_compile_file()
-
+def run_compilation_file():
+    with open('log.txt', 'w') as f:
+        subprocess.call(
+            'compile.bat',
+            shell=True,
+            stdout=f,
+            cwd=os.getcwd())
+    
+def remove_compilation_file():
+    os.remove('compile.bat')
+    
+def compile_code(options):
+    create_makefile(options)
+    create_compilation_file(options)
+    run_compilation_file()
+    remove_compilation_file()
     
