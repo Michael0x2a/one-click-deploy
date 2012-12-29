@@ -46,9 +46,14 @@ def generate_individual(files, options):
     return '\n'.join(individual)
     
 def generate_linking(files, options):
-    link_section = ['', 'OBJECTS_{project_name} = \\']
-    object_line = ' {project_name}/$(MODE_DIR)/Objects/{project_name}/{file}.o \\'
+    link_section = ['', 'OBJECTS_{project_name}_partialImage =']
+    object_line = '\t {project_name}_partialImage/$(MODE_DIR)/Objects/{project_directory}/{file}.o \\'
+    first = True
     for file in files:
+        if first:
+            link_section[1] += object_line.replace('{file}', file)
+            first = False
+            continue
         link_section.append(object_line.replace('{file}', file))
     link_section[-1] = link_section[-1][:-2]
     link_section.append('')
@@ -58,9 +63,9 @@ def generate_linking(files, options):
     return '\n'.join(link_section)
     
 def generate_dep_files(files, options):
-    dep_section = ['\nDEP_FILES := \\']
+    dep_section = ['force :\n\nDEP_FILES := \\']
     line = []
-    template = "{project_name}/$(MODE_DIR)/Objects/{project_name}/{file}.d "
+    template = "{project_name}_partialImage/$(MODE_DIR)/Objects/{project_name}/{file}.d "
     x = 0
     for file in files:
         this = template.replace('{file}', file)
@@ -68,7 +73,7 @@ def generate_dep_files(files, options):
         x += 1
         if x == 3:
             line.append('\\')
-            dep_section.append(''.join(line))
+            dep_section.append('	' + ''.join(line))
             x = 0
     if x == 0:
         dep_section[-1] = dep_section[-1][:-2]
@@ -77,9 +82,10 @@ def generate_dep_files(files, options):
     
 def replace_placeholders(makefile, options):
     makefile = makefile.format(
+        absolute_workspace_directory = os.getcwd(),
         project_name = options.binary_name,
         project_directory = options.repo_download_dir,
-        workspace_directory = options.working_dir)
+        workspace_directory = '.')
     return makefile
         
 def generate_makefile(options):

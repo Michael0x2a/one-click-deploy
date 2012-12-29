@@ -21,7 +21,7 @@ def save_options(op):
     options.save_options(op)
     
 def does_code_exist(op):
-    repo.does_code_exist(op)
+    return repo.does_code_exist(op)
     
 def get_download_choices(op):
     repo.get_download_choices(op)
@@ -35,6 +35,9 @@ def compile_code(op):
 def get_connection_options():
     return deploy.get_connection_options()
 
+def connect_to_robot(op):
+    deploy.connect_to_robot(op)
+    
 def deploy_code(op):
     deploy.deploy_code(op)
     

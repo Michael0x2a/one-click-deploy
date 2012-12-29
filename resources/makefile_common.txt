@@ -14,14 +14,14 @@ else
 MODE_DIR := NonDebug
 endif
 OBJ_DIR := .
-PRJ_ROOT_DIR := {project_directory}
-WS_ROOT_DIR := {workspace_directory}
+WS_ROOT_DIR := {absolute_workspace_directory}
+PRJ_ROOT_DIR := $(WS_ROOT_DIR)/{project_directory}
 
 
 
 #Global Build Macros
 PROJECT_TYPE = DKM
-DEFINES =
+DEFINES = 
 EXPAND_DBG = 0
 
 
@@ -30,14 +30,16 @@ VX_CPU_FAMILY = ppc
 CPU = PPC603
 TOOL_FAMILY = gnu
 TOOL = gnu
-TOOL_PATH =
+TOOL_PATH = 
 CC_ARCH_SPEC = -mcpu=603 -mstrict-align -mno-implicit-fp -mlongcall
-LIBPATH =
-LIBS =
+LIBPATH = 
+LIBS = 
 
-IDE_INCLUDES = -I.. -I$(WIND_BASE)/target/h -I$(WIND_BASE)/target/h/wrn/coreip
+IDE_INCLUDES = -I$(WIND_BASE)/target/h/WPILib -I$(WIND_BASE)/target/h/wrn/coreip -I$(WIND_BASE)/target/h 
 
-IDE_LIBRARIES =
+IDE_LIBRARIES = $(WIND_BASE)/target/lib/WPILib.a 
+
+IDE_DEFINES = 
 
 
 
@@ -46,21 +48,23 @@ ifeq ($(DEBUG_MODE),1)
 DEBUGFLAGS_C-Compiler = -g
 DEBUGFLAGS_C++-Compiler = -g
 DEBUGFLAGS_Linker = -g
-DEBUGFLAGS_Partial-Image-Linker =
-DEBUGFLAGS_Librarian =
+DEBUGFLAGS_Partial-Image-Linker = 
+DEBUGFLAGS_Librarian = 
 DEBUGFLAGS_Assembler = -g
 else
 DEBUGFLAGS_C-Compiler = -O2 -fstrength-reduce -fno-builtin
 DEBUGFLAGS_C++-Compiler = -O2 -fstrength-reduce -fno-builtin
 DEBUGFLAGS_Linker = -O2 -fstrength-reduce -fno-builtin
-DEBUGFLAGS_Partial-Image-Linker =
-DEBUGFLAGS_Librarian =
+DEBUGFLAGS_Partial-Image-Linker = 
+DEBUGFLAGS_Librarian = 
 DEBUGFLAGS_Assembler = -O2 -fstrength-reduce -fno-builtin
 endif
 
 
 #Project Targets
-PROJECT_TARGETS = {project_name}/$(MODE_DIR)/{project_name}.a
+PROJECT_TARGETS = {project_name}/$(MODE_DIR)/{project_name}.out \
+	 {project_name}_partialImage/$(MODE_DIR)/{project_name}_partialImage.o
+
 
 #Rules
 
@@ -69,29 +73,74 @@ ifeq ($(DEBUG_MODE),1)
 {project_name}/$(MODE_DIR)/% : DEBUGFLAGS_C-Compiler = -g
 {project_name}/$(MODE_DIR)/% : DEBUGFLAGS_C++-Compiler = -g
 {project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Linker = -g
-{project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Partial-Image-Linker =
-{project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Librarian =
+{project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Partial-Image-Linker = 
+{project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Librarian = 
 {project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Assembler = -g
 else
 {project_name}/$(MODE_DIR)/% : DEBUGFLAGS_C-Compiler = -O2 -fstrength-reduce -fno-builtin
 {project_name}/$(MODE_DIR)/% : DEBUGFLAGS_C++-Compiler = -O2 -fstrength-reduce -fno-builtin
 {project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Linker = -O2 -fstrength-reduce -fno-builtin
-{project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Partial-Image-Linker =
-{project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Librarian =
+{project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Partial-Image-Linker = 
+{project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Librarian = 
 {project_name}/$(MODE_DIR)/% : DEBUGFLAGS_Assembler = -O2 -fstrength-reduce -fno-builtin
 endif
-{project_name}/$(MODE_DIR)/% : IDE_INCLUDES = -I.. -I$(WIND_BASE)/target/h -I$(WIND_BASE)/target/h/wrn/coreip
-{project_name}/$(MODE_DIR)/% : IDE_LIBRARIES =
+{project_name}/$(MODE_DIR)/% : IDE_INCLUDES = -I$(WIND_BASE)/target/h/WPILib -I$(WIND_BASE)/target/h/wrn/coreip -I$(WIND_BASE)/target/h 
+{project_name}/$(MODE_DIR)/% : IDE_LIBRARIES = $(WIND_BASE)/target/lib/WPILib.a 
+{project_name}/$(MODE_DIR)/% : IDE_DEFINES = 
 {project_name}/$(MODE_DIR)/% : PROJECT_TYPE = DKM
-{project_name}/$(MODE_DIR)/% : DEFINES =
+{project_name}/$(MODE_DIR)/% : DEFINES = 
 {project_name}/$(MODE_DIR)/% : EXPAND_DBG = 0
 {project_name}/$(MODE_DIR)/% : VX_CPU_FAMILY = ppc
 {project_name}/$(MODE_DIR)/% : CPU = PPC603
 {project_name}/$(MODE_DIR)/% : TOOL_FAMILY = gnu
 {project_name}/$(MODE_DIR)/% : TOOL = gnu
-{project_name}/$(MODE_DIR)/% : TOOL_PATH =
+{project_name}/$(MODE_DIR)/% : TOOL_PATH = 
 {project_name}/$(MODE_DIR)/% : CC_ARCH_SPEC = -mcpu=603 -mstrict-align -mno-implicit-fp -mlongcall
-{project_name}/$(MODE_DIR)/% : LIBPATH =
-{project_name}/$(MODE_DIR)/% : LIBS =
+{project_name}/$(MODE_DIR)/% : LIBPATH = 
+{project_name}/$(MODE_DIR)/% : LIBS = 
 {project_name}/$(MODE_DIR)/% : OBJ_DIR := {project_name}/$(MODE_DIR)
 
+OBJECTS_{project_name} = {project_name}_partialImage/$(MODE_DIR)/{project_name}_partialImage.o
+
+{project_name}/$(MODE_DIR)/{project_name}.out : $(OBJECTS_{project_name})
+	$(TRACE_FLAG)if [ ! -d "`dirname "$@"`" ]; then mkdir -p "`dirname "$@"`"; fi;echo "building $@";rm -f "$@";nmppc $(OBJECTS_{project_name}) $(IDE_LIBRARIES) | tclsh $(WIND_BASE)/host/resource/hutils/tcl/munch.tcl -c ppc > $(OBJ_DIR)/ctdt.c; $(TOOL_PATH)ccppc $(DEBUGFLAGS_Linker) $(CC_ARCH_SPEC) -fdollars-in-identifiers -Wall $(ADDED_CFLAGS) $(IDE_INCLUDES) $(ADDED_INCLUDES) -DCPU=$(CPU) -DTOOL_FAMILY=$(TOOL_FAMILY) -DTOOL=$(TOOL) -D_WRS_KERNEL   $(DEFINES)  -o $(OBJ_DIR)/ctdt.o -c $(OBJ_DIR)/ctdt.c; $(TOOL_PATH)ccppc -r -nostdlib -Wl,-X -T $(WIND_BASE)/target/h/tool/gnu/ldscripts/link.OUT -o "$@" $(OBJ_DIR)/ctdt.o $(OBJECTS_{project_name}) $(IDE_LIBRARIES) $(LIBPATH) $(LIBS)  $(ADDED_LIBPATH) $(ADDED_LIBS) && if [ "$(EXPAND_DBG)" = "1" ]; then plink "$@";fi
+
+{project_name}/$(MODE_DIR)/{project_name}_compile_file : $(FILE) ;
+
+_clean :: {project_name}/$(MODE_DIR)/{project_name}_clean
+
+{project_name}/$(MODE_DIR)/{project_name}_clean : 
+	$(TRACE_FLAG)if [ -d "{project_name}" ]; then cd "{project_name}"; rm -rf $(MODE_DIR); fi
+
+
+# {project_name}_partialImage
+ifeq ($(DEBUG_MODE),1)
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_C-Compiler = -g
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_C++-Compiler = -g
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_Linker = -g
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_Partial-Image-Linker = 
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_Librarian = 
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_Assembler = -g
+else
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_C-Compiler = -O2 -fstrength-reduce -fno-builtin
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_C++-Compiler = -O2 -fstrength-reduce -fno-builtin
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_Linker = -O2 -fstrength-reduce -fno-builtin
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_Partial-Image-Linker = 
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_Librarian = 
+{project_name}_partialImage/$(MODE_DIR)/% : DEBUGFLAGS_Assembler = -O2 -fstrength-reduce -fno-builtin
+endif
+{project_name}_partialImage/$(MODE_DIR)/% : IDE_INCLUDES = -I$(WIND_BASE)/target/h/WPILib -I$(WIND_BASE)/target/h/wrn/coreip -I$(WIND_BASE)/target/h 
+{project_name}_partialImage/$(MODE_DIR)/% : IDE_LIBRARIES = $(WIND_BASE)/target/lib/WPILib.a 
+{project_name}_partialImage/$(MODE_DIR)/% : IDE_DEFINES = 
+{project_name}_partialImage/$(MODE_DIR)/% : PROJECT_TYPE = DKM
+{project_name}_partialImage/$(MODE_DIR)/% : DEFINES = 
+{project_name}_partialImage/$(MODE_DIR)/% : EXPAND_DBG = 0
+{project_name}_partialImage/$(MODE_DIR)/% : VX_CPU_FAMILY = ppc
+{project_name}_partialImage/$(MODE_DIR)/% : CPU = PPC603
+{project_name}_partialImage/$(MODE_DIR)/% : TOOL_FAMILY = gnu
+{project_name}_partialImage/$(MODE_DIR)/% : TOOL = gnu
+{project_name}_partialImage/$(MODE_DIR)/% : TOOL_PATH = 
+{project_name}_partialImage/$(MODE_DIR)/% : CC_ARCH_SPEC = -mcpu=603 -mstrict-align -mno-implicit-fp -mlongcall
+{project_name}_partialImage/$(MODE_DIR)/% : LIBPATH = 
+{project_name}_partialImage/$(MODE_DIR)/% : LIBS = 
+{project_name}_partialImage/$(MODE_DIR)/% : OBJ_DIR := {project_name}_partialImage/$(MODE_DIR)

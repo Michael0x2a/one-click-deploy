@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
 import core
+import compile
 import options
+import repo
+import deploy
 import os.path
 
 import wx
@@ -21,7 +24,7 @@ class DeployTab(wx.Panel):
         self.download_button = wx.Button(
             self,
             wx.ID_ANY,
-            label="Download Code\n(will overwrite existing code)")
+            label="Download Code From Repository\n(will overwrite existing code)")
         self.restore_button = wx.Button(
             self,
             wx.ID_ANY,
@@ -68,12 +71,46 @@ class DeployTab(wx.Panel):
             event.Skip()
             return
         if not core.does_code_exist(op):
-            core.download_code(op)
+            self.deploy_button.SetLabel('Downloading code, please wait...')
+            success = self.download_code(op)
             downloaded = True
+            if not success:
+                self.deploy_button.SetLabel('DEPLOY')
+                return
         else:
             downloaded = False
-        core.compile_code(op)
-        core.deploy_code(op)
+        
+        self.deploy_button.SetLabel('Connecting to robot, please wait...')
+        try:
+            core.connect_to_robot(op)
+        except deploy.ConnectionError as e:
+            self.display_error(str(e))
+            self.deploy_button.SetLabel('DEPLOY')
+            return
+        except deploy.NetworkConnectionError as e:
+            self.display_error(str(e))
+        
+        self.deploy_button.SetLabel('Compiling code, please wait...')
+        try:
+            core.compile_code(op)
+        except compile.CompilationError as e:
+            self.display_error(str(e))
+            return
+        except compile.MissingWrmakefile as e:
+            self.display_error(str(e))
+            return
+        finally:
+            self.deploy_button.SetLabel('DEPLOY')
+            
+        self.deploy_button.SetLabel('Deploying code, please wait...')
+        try:
+            core.deploy_code(op)
+        except deploy.ConnectionError as e:
+            self.display_error(str(e))
+            return
+        finally:
+            self.deploy_button.SetLabel('DEPLOY')
+            
         if downloaded:
             self.display_success('Successfully downloaded, compiled, and deployed code')
         else:
@@ -85,16 +122,29 @@ class DeployTab(wx.Panel):
         if op is None:
             event.Skip()
             return
-        core.download_code(op)
-        self.display_success('Successfully downloaded code from the repo')
+        self.download_button.SetLabel('Downloading code, please wait...')
+        is_success = self.download_code(op)
+        self.download_button.SetLabel('Download Code From Repository\n(will overwrite existing code)')
+        if is_success:
+            self.display_success('Successfully downloaded code from the repo')
         
     def restore_func(self, event):
         op = self.get_options()
         if op is None:
             event.Skip()
             return
-        core.restore_internet(op)
-        self.display_success('Successfully restored access to the internet')
+        self.restore_button.SetLabel('Restoring internet, please wait...')
+        if op.wireless_mac_address.lower() == 'none':
+            self.display_error('Please select an adapter from the options tab')
+            self.restore_button.SetLabel('Restore Internet')
+            return
+        try:
+            core.restore_internet(op)
+            self.display_success('Successfully restored access to the internet')
+        except deploy.ConnectionError as e:
+            self.display_error(str(e))
+        finally:
+            self.restore_button.SetLabel('Restore Internet')
         
     def get_options(self):
         try:
@@ -103,6 +153,21 @@ class DeployTab(wx.Panel):
             self.display_error('Please set the options in the "Options" tab first')
             return None
         return op
+        
+    def download_code(self, op):
+        try:
+            core.download_code(op)
+            return True
+        except repo.InvalidRevision:
+            self.display_error('Please set a valid revision number (or type "latest" to download the latest revision) in the options tab.')
+            return False
+        except repo.InvalidUrl as e:
+            self.display_error(str(e))
+        except repo.InaccessibleUrl as e:
+            self.display_error(str(e))
+        finally:
+            pass
+        
         
     def display_success(self, message, title='Success!'):
         dialog = wx.MessageBox(
@@ -124,22 +189,30 @@ class OptionsTab(wx.Panel):
         self.create_layout()
         
     def create_elements(self):
+        if not core.does_options_exist():
+            core.create_default_options()
+            wx.MessageBox(
+                'Be sure to configure the settings in the "Options" tab before running anything!',
+                'Alert!',
+                wx.OK|wx.ICON_EXCLAMATION)
+        op = core.get_options()
+        
         self.team_number_static = wx.StaticText(self, wx.ID_ANY, "Team Number")
-        self.team_number_text = wx.TextCtrl(self, wx.ID_ANY, "")
+        self.team_number_text = wx.TextCtrl(self, wx.ID_ANY, op.team_number)
         
         self.robot_network_static = wx.StaticText(self, wx.ID_ANY, "Robot Network Name")
-        self.robot_network_text = wx.TextCtrl(self, wx.ID_ANY, "")
+        self.robot_network_text = wx.TextCtrl(self, wx.ID_ANY, op.robot_network_name)
         
         self.source_static = wx.StaticText(self, wx.ID_ANY, "Source Code Url")
-        self.source_text = wx.TextCtrl(self, wx.ID_ANY, "latest")
+        self.source_text = wx.TextCtrl(self, wx.ID_ANY, op.repo_target_url)
         
         self.revision_static = wx.StaticText(self, wx.ID_ANY, "Source Code Revision")
-        self.revision_text = wx.TextCtrl(self, wx.ID_ANY, "")
+        self.revision_text = wx.TextCtrl(self, wx.ID_ANY, op.repo_target_revision)
         
         self.install_dir_static = wx.StaticText(self, wx.ID_ANY, "WindRiver Install Dir")
-        self.install_dir_text = wx.TextCtrl(self, wx.ID_ANY, "")
+        self.install_dir_text = wx.TextCtrl(self, wx.ID_ANY, op.windriver_install_dir)
         
-        ethernet, wireless = self.get_adapter_choices()
+        (e_default, ethernet), (w_default, wireless) = self.get_adapter_choices(op)
         
         self.wireless_adapter_static = wx.StaticText(self, wx.ID_ANY, "Wireless Adapter")
         self.wireless_adapter_choice = wx.ComboBox(
@@ -253,17 +326,31 @@ class OptionsTab(wx.Panel):
         self.SetSizer(self.sizer)
         self.sizer.Fit(self)
         
-    def get_adapter_choices(self):
+    def get_adapter_choices(self, op):
         con = core.get_connection_options()
         ethernet = con['ethernet']
         wireless = con['wireless']
         ethernet_out = ['None']
         wireless_out = ['None']
+        ethernet_default = None
+        wireless_default = None
         for name, mac in ethernet.items():
-            ethernet_out.append('{0} ({1})'.format(name, mac))
+            label = '{0} ({1})'.format(name, mac)
+            ethernet_out.append(label)
+            if op.ethernet_mac_address == mac:
+                ethernet_default = label
         for name, mac in wireless.items():
-            wireless_out.append('{0} ({1})'.format(name, mac))
-        return ethernet_out, wireless_out
+            label = '{0} ({1})'.format(name, mac)
+            wireless_out.append(label)
+            if op.wireless_mac_address == mac:
+                wireless_default = label
+                
+        if op.ethernet_mac_address.lower() == 'None':
+            ethernet_default = 'None'
+        if op.wireless_mac_address.lower() == 'None':
+            wireless_default = 'None'
+            
+        return (ethernet_default, ethernet_out), (wireless_default, wireless_out)
         
     def apply_func(self, event):
         def get_mac(string):
@@ -284,6 +371,12 @@ class OptionsTab(wx.Panel):
         
         core.save_options(op)
         
+        wx.MessageBox(
+            'Options successfully applied!',
+            'Success!',
+            wx.OK|wx.ICON_EXCLAMATION)
+            
+        
         
 class NotebookTabs(wx.Notebook):
     def __init__(self, parent):
@@ -301,6 +394,8 @@ class MainWindow(wx.Frame):
         super(MainWindow, self).__init__(parent)
         
         self.SetTitle('One Click Deploy')
+        self.icon = wx.Icon(r'resources/icon.ico', wx.BITMAP_TYPE_ICO)
+        self.SetIcon(self.icon)
         
         self.setup_ui()
         self.setup_sizers()

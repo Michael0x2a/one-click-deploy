@@ -1,0 +1,1 @@
+python -O C:\Path\pyinstaller-2.0\pyinstaller.py --onefile --noconsole --icon=resources/icon.ico one_click_deploy.pyw

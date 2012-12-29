@@ -3,15 +3,19 @@
 import sys
 import os
 import re
+import ftplib
+import socket
+import subprocess
 
 import wmi
 
 class ConnectionError(Exception): pass
 class NotWindows(Exception): pass
+class NetworkConnectionError(Exception): pass
     
 def get_network_adapter_obj(mac_address):
     mac_address = mac_address.replace('-', ':')
-    nic_configs = wmi.WMI().Win32_NetworkAdapterConfiguration({'MACAddress': mac_address})
+    nic_configs = wmi.WMI().Win32_NetworkAdapterConfiguration(MACAddress=mac_address)
     return nic_configs[0]
     
 def handle_error_code(code):
@@ -62,7 +66,7 @@ def handle_error_code(code):
     else:
         if code not in error_codes:
             code = -1
-            message = 'Unknown error.\nSee http://msdn.microsoft.com/en-us/library/aa390383%28v=VS.85%29.aspx\nor: http://msdn.microsoft.com/en-us/library/aa390378%28v=VS.85%29.aspx\n...for info on error codes.'
+            message = 'Unknown error.\nTry running program as administrator.\nSee http://msdn.microsoft.com/en-us/library/aa390383%28v=VS.85%29.aspx\nor: http://msdn.microsoft.com/en-us/library/aa390378%28v=VS.85%29.aspx\n...for info on error codes.'
         if code in error_codes:
             message = error_codes[code]
         raise ConnectionError('Error code {0}: {1}'.format(code, message))
@@ -113,8 +117,6 @@ def get_connection_options():
 def restore_internet(options):
     if options.wireless_mac_address.lower() != 'none':
         switch_to_internet(options.wireless_mac_address)
-    if options.ethernet_mac_address.lower() != 'none':
-        switch_to_internet(options.ethernet_mac_address)
     
 def connect_to_robot(options):
     top, bottom = split_team_number(options.team_number)
@@ -122,18 +124,31 @@ def connect_to_robot(options):
         switch_to_robot(options.wireless_mac_address, '10.{0}.{1}.42'.format(top, bottom))
     if options.ethernet_mac_address.lower() != 'none':
         switch_to_robot(options.ethernet_mac_address, '10.{0}.{1}.6'.format(top, bottom))
+        
+    p = subprocess.Popen(
+        'netsh wlan connect {0}'.format(options.robot_network_name),
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=os.getcwd())
+    stdout, stderr = p.communicate()
+    if stdout != 'Connection request was completed successfully.':
+        raise NetworkConnectionError('Unable to connect to {0}. Please manually connect.'.format(options.robot_network_name))
     
 def deploy_code(options):
-    connect_to_robot(options)
     top, bottom = split_team_number(options.team_number)
     ip = '10.{0}.{1}.2'.format(top, bottom)
-    ftp = ftplib.FTP(ip)
+    try:
+        ftp = ftplib.FTP(ip)
+    except socket.error:
+        raise ConnectionError('Could not connect to robot. Check your team number, robot network name, adapters, and ip addresses')
+    ftp.login()
     binary = os.path.join(
         options.repo_download_dir,
         options.build_target,
         options.binary_name,
         'Debug',
         options.binary_name + '.out')
-    command = 'STOR {0}'.format(binary)
+    command = 'STOR ni-rt/system/FRC_UserProgram.out'
     ftp.storbinary(command, open(binary, 'rb'))
     

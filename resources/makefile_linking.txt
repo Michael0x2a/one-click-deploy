@@ -1,9 +1,10 @@
-{project_name}/$(MODE_DIR)/{project_name}.a : $(OBJECTS_{project_name}) \
-$(TRACE_FLAG)if [ ! -d "`dirname "$@"`" ]; then mkdir -p "`dirname "$@"`"; fi;echo "building $@"; $(TOOL_PATH)arppc crus "$@" $(OBJECTS_{project_name})
 
-{project_name}/$(MODE_DIR)/{project_name}_compile_file : $(FILE) ;
+{project_name}_partialImage/$(MODE_DIR)/{project_name}_partialImage.o : $(OBJECTS_{project_name}_partialImage)
+	$(TRACE_FLAG)if [ ! -d "`dirname "$@"`" ]; then mkdir -p "`dirname "$@"`"; fi;echo "building $@"; $(TOOL_PATH)ccppc -r -nostdlib -Wl,-X -o "$@" $(OBJECTS_{project_name}_partialImage) $(LIBPATH) $(LIBS) $(ADDED_LIBPATH) $(ADDED_LIBS) && if [ "$(EXPAND_DBG)" = "1" ]; then plink "$@";fi
 
-_clean :: {project_name}/$(MODE_DIR)/{project_name}_clean
+{project_name}_partialImage/$(MODE_DIR)/{project_name}_partialImage_compile_file : $(FILE) ;
 
-{project_name}/$(MODE_DIR)/{project_name}_clean : \
-$(TRACE_FLAG)if [ -d "{project_name}" ]; then cd "{project_name}"; rm -rf $(MODE_DIR); fi
+_clean :: {project_name}_partialImage/$(MODE_DIR)/{project_name}_partialImage_clean
+
+{project_name}_partialImage/$(MODE_DIR)/{project_name}_partialImage_clean :
+	$(TRACE_FLAG)if [ -d "{project_name}_partialImage" ]; then cd "{project_name}_partialImage"; rm -rf $(MODE_DIR); fi

@@ -39,4 +39,5 @@ def main():
     else:
         console.main()
         
-        
+if __name__ == '__main__':
+    main()

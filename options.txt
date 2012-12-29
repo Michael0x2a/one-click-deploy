@@ -1,8 +1,19 @@
+# Configuration options for one-click-deploy
+# Any line starting with '#' is a comment.
+#
+# Usage:
+#
+#     key = {value}
+#
+# Feel free to adjust values to your liking. If you mess
+# up the keys, and want a new "options.txt" file, just delete
+# this one, and a new (blank) one will be generated.
+
 team_number = 2976
 robot_network_name = 2976
 
 repo_target_url = http://skyline-robotics.googlecode.com/svn/trunk/2012_MainRobot
-repo_target_revision = latest
+repo_target_revision = LATEST
 repo_download_dir = source
 binary_name = SimpleTemplate
 
