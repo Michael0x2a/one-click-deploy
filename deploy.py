@@ -127,12 +127,13 @@ def connect_to_robot(options):
         
     p = subprocess.Popen(
         'netsh wlan connect {0}'.format(options.robot_network_name),
+        shell=True,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=os.getcwd())
     stdout, stderr = p.communicate()
-    if stdout != 'Connection request was completed successfully.':
+    if not 'Connection request was completed successfully.' in stdout:
         raise NetworkConnectionError('Unable to connect to {0}. Please manually connect.'.format(options.robot_network_name))
     
 def deploy_code(options):

@@ -3,6 +3,9 @@
 This class provides a convenient interface for all the major functions
 and tasks this program performs.
 '''
+import ctypes
+import os
+
 import options
 import repo
 import compile
@@ -43,3 +46,10 @@ def deploy_code(op):
     
 def restore_internet(op):
     deploy.restore_internet(op)
+    
+def is_admin():
+    try:
+        admin = os.getuid() == 0
+    except AttributeError:
+        admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    return admin

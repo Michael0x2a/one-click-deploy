@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
+import urllib2
+import os.path
+import sys
+
 import core
 import compile
 import options
 import repo
 import deploy
-import os.path
+
+import one_click_deploy as meta
 
 import wx
 
@@ -72,9 +77,14 @@ class DeployTab(wx.Panel):
             return
         if not core.does_code_exist(op):
             self.deploy_button.SetLabel('Downloading code, please wait...')
-            success = self.download_code(op)
-            downloaded = True
-            if not success:
+            try:
+                success = self.download_code(op)
+                downloaded = True
+                if not success:
+                    self.deploy_button.SetLabel('DEPLOY')
+                    return                
+            except urllib2.URLError:
+                self.display_error('Please restore access to the internet first.')
                 self.deploy_button.SetLabel('DEPLOY')
                 return
         else:
@@ -90,7 +100,7 @@ class DeployTab(wx.Panel):
         except deploy.NetworkConnectionError as e:
             self.display_error(str(e))
         
-        self.deploy_button.SetLabel('Compiling code, please wait...')
+        self.deploy_button.SetLabel('Compiling code, please wait. This may take a while.\n')
         try:
             core.compile_code(op)
         except compile.CompilationError as e:
@@ -123,11 +133,15 @@ class DeployTab(wx.Panel):
             event.Skip()
             return
         self.download_button.SetLabel('Downloading code, please wait...')
-        is_success = self.download_code(op)
-        self.download_button.SetLabel('Download Code From Repository\n(will overwrite existing code)')
-        if is_success:
-            self.display_success('Successfully downloaded code from the repo')
-        
+        try:
+            is_success = self.download_code(op)
+            if is_success:
+                self.display_success('Successfully downloaded code from the repo')
+        except urllib2.URLError:
+            self.display_error('Please restore access to the internet first.')
+        finally:
+            self.download_button.SetLabel('Download Code From Repository\n(will overwrite existing code)')
+            
     def restore_func(self, event):
         op = self.get_options()
         if op is None:
@@ -213,19 +227,19 @@ class OptionsTab(wx.Panel):
         self.install_dir_text = wx.TextCtrl(self, wx.ID_ANY, op.windriver_install_dir)
         
         (e_default, ethernet), (w_default, wireless) = self.get_adapter_choices(op)
-        
         self.wireless_adapter_static = wx.StaticText(self, wx.ID_ANY, "Wireless Adapter")
         self.wireless_adapter_choice = wx.ComboBox(
             self, 
             wx.ID_ANY, 
-            value='None',
+            value=w_default,
             choices=wireless, 
             style=wx.CB_DROPDOWN | wx.CB_DROPDOWN)
         
         self.ethernet_adapter_static = wx.StaticText(self, wx.ID_ANY, "Ethernet Adapter")
         self.ethernet_adapter_choice = wx.ComboBox(
-            self, wx.ID_ANY, 
-            value='None', 
+            self, 
+            wx.ID_ANY, 
+            value=e_default, 
             choices=ethernet, 
             style=wx.CB_DROPDOWN | wx.CB_DROPDOWN)
         
@@ -332,17 +346,21 @@ class OptionsTab(wx.Panel):
         wireless = con['wireless']
         ethernet_out = ['None']
         wireless_out = ['None']
-        ethernet_default = None
-        wireless_default = None
+        ethernet_default = 'None'
+        wireless_default = 'None'
         for name, mac in ethernet.items():
             label = '{0} ({1})'.format(name, mac)
             ethernet_out.append(label)
-            if op.ethernet_mac_address == mac:
+            norm = op.ethernet_mac_address
+            dash = norm.replace(':', '-')
+            if (norm in mac) or (dash in mac):
                 ethernet_default = label
         for name, mac in wireless.items():
             label = '{0} ({1})'.format(name, mac)
             wireless_out.append(label)
-            if op.wireless_mac_address == mac:
+            norm = op.wireless_mac_address
+            dash = norm.replace(':', '-')
+            if (norm in mac) or (dash in mac):
                 wireless_default = label
                 
         if op.ethernet_mac_address.lower() == 'None':
@@ -404,6 +422,14 @@ class MainWindow(wx.Frame):
         self.Centre()
         self.Show(True)
         
+        if not core.is_admin():
+            wx.MessageBox(
+                'Please right-click this program and select "Run As Administrator". This program needs admin rights in order to function properly.',
+                'Error',
+                wx.OK|wx.ICON_ERROR)
+            self.Close()
+            sys.exit(0)                 
+        
     def setup_ui(self):
         self.menubar = wx.MenuBar()
         
@@ -413,13 +439,12 @@ class MainWindow(wx.Frame):
         
         self.menubar.Append(file_menu, '&File')
         
-        help_menu = wx.Menu()
-        f_about = help_menu.Append(100, 'About', 'About this program')
-        f_help = help_menu.Append(101, 'Help', 'How to use this program')
-        self.menubar.Append(help_menu, '&Help')
+        about_menu = wx.Menu()
+        f_about = about_menu.Append(100, 'About', 'About this program')
+        self.Bind(wx.EVT_MENU, self.about_func, id=100)
+        self.menubar.Append(about_menu, '&About')
         
         self.SetMenuBar(self.menubar)
-        
         
     def setup_sizers(self):
         self.panel = wx.Panel(self)
@@ -432,6 +457,17 @@ class MainWindow(wx.Frame):
         
     def on_quit(self, event):
         self.Close()
+        
+    def about_func(self, event):
+        info = wx.AboutDialogInfo()
+        info.SetName(meta.__prog__)
+        info.SetVersion(meta.__version__)
+        info.SetDescription(meta.__doc__)
+        info.SetLicense(meta.__license__)
+        info.AddDeveloper(meta.__author__)
+        
+        wx.AboutBox(info)
+        
         
 def main():
     app = wx.App()
