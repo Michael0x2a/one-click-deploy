@@ -12,7 +12,7 @@
 team_number = 2976
 robot_network_name = 2976
 
-repo_target_url = http://skyline-robotics.googlecode.com/svn/trunk/2012_MainRobot
+repo_target_url = http://skyline-robotics.googlecode.com/svn/2013_MainRobot/trunk
 repo_target_revision = LATEST
 repo_download_dir = source
 binary_name = SimpleTemplate
